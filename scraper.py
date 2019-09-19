@@ -87,18 +87,7 @@ def pageReviews(url):
             'VotesFor': consented,
             'VotesTotal': voted
         })
-        """print("Title: " + title)
-        print("Rating: " + rating)
-        print("Publish Date: " + PublishDate)
-        print("Author: " + author)
-        print("Owned for: " + boughttime)
-        print("Verified:", verified)
-        print("Pros: " + pros)
-        print("Cons: " + cons)
-        print("Comments: " + review_text)
-        print("Votes for: " + str(consented))
-        print("Total votes: " + str(voted))
-        print()"""
+
     return item, subdata
 
 category, urls = getCategoryAndUrls(category_url)
