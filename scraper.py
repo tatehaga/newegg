@@ -10,6 +10,7 @@ url = "https://www.newegg.com/icicle-gold-asus-zenbook-ux331ua-ds71-mainstream/p
 #url = "https://www.newegg.com/dark-royal-blue-asus-zenbook-ux434fl-db77-mainstream/p/N82E16834235238"
 url = "https://www.newegg.com/p/N82E16834230663"
 category_url = "https://www.newegg.com/Laptops-Notebooks-Laptops-Notebooks/SubCategory/ID-32?Tid=6740&Order=REVIEWS&PageSize=96"
+category_111 = "https://www.newegg.com/Laptops-Notebooks-Laptops-Notebooks/SubCategory/ID-32/Page-2?Tid=6740&Order=REVIEWS&PageSize=96"
 
 def getCategoryAndUrls(category_url):
     urls = []
