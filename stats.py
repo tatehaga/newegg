@@ -44,6 +44,3 @@ stats.write("Number of reviewers (non-anonymous): " + str(len(reviewers)) + '\n\
 stats.write("AuthorID                    Number of Reviews\n")
 for w in sorted(reviewers, key=reviewers.get,reverse=True):
     stats.write(w + "    " + str(reviewers[w]) + '\n')
-print(num_items)
-print(num_items_with_reviews)
-print(num_reviews)
