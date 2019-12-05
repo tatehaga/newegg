@@ -1,11 +1,18 @@
 import json
+import sys
+if len(sys.argv) != 3:
+    print("Invalid command, run command as stats.py *input file* *output file*")
+    sys.exit()
+
+input_file = sys.argv[1]
+output_file = sys.argv[2]
 reviewers = {}
 num_items = 0
 num_items_with_reviews = 0
 num_reviews = 0
-stats = open("statistics.txt", "w")
+stats = open(output_file, "w")
 
-with open('new_data.json') as json_file:
+with open(input_file) as json_file:
     data = json.load(json_file)
 for i in data:
     for j in data[i]:
