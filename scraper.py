@@ -181,6 +181,6 @@ for url in all_links:
     time.sleep(3)
 
 data[str(category)] = dataentry
-output_with_timestamp = str(output) + str(time.time()) + ".json"
+output_with_timestamp = str(output) + "_" + str(time.time()) + ".json"
 with open(output_with_timestamp, 'w') as outfile:
     json.dump(data, outfile, indent=4)
