@@ -4,26 +4,49 @@ import urllib.request
 from bs4 import BeautifulSoup
 import re
 import time
+import sys
+
+"""
+This application is split into three major pieces of functionality:
+getPagesfromCategory, getCategoryAndUrls, and newReviews.
+
+getPagesfromCategory takes a Newegg subcategory link, and generates 
+list of all pages in that subcategory until a page with some "n" 
+number of reviews is reached, in this case n=2
+
+getCategoryAndUrls takes an individual page with multiple items on it
+(the output of getPagesfromCategory) and returns the subcategory of
+items as well as a list of links to each item on the page
+
+newReviews takes the url to any given item and returns the item id and a dictionary
+object with the information about the object, including all its reviews
+Note: During development, Newegg changed the way you viewed reviews from being a part of
+the static html to a dynamic javascript loading, so for most pages, you only are able
+to access the first 8 or so reviews on a page, sorry.  Also, for some reason there are lots
+of items on Newegg that have reviews but these reviews aren't available.  I don't quite understand why.
+
+Example url:
+"https://www.newegg.com/Processors-Desktops/SubCategory/ID-343/Page-1?name=Processors-Desktops&PageSize=96&Order=REVIEWS"
+"""
 
 
-url = "https://www.newegg.com/icicle-gold-asus-zenbook-ux331ua-ds71-mainstream/p/N82E16834234966?Item=N82E16834234966&SortField=0&SummaryType=0&PageSize=10&SelectedRating=-1&VideoOnlyMark=False&IsFeedbackTab=true#scrollFullInfo"
-#url = "https://www.newegg.com/dark-royal-blue-asus-zenbook-ux434fl-db77-mainstream/p/N82E16834235238"
-url = "https://www.newegg.com/p/N82E16834230663"
-category_url = "https://www.newegg.com/Laptops-Notebooks-Laptops-Notebooks/SubCategory/ID-32?Tid=6740&Order=REVIEWS&PageSize=96"
-category_111 = "https://www.newegg.com/Laptops-Notebooks-Laptops-Notebooks/SubCategory/ID-32/Page-2?Tid=6740&Order=REVIEWS&PageSize=96"
-graphics_url = "https://www.newegg.com/Desktop-Graphics-Cards-Desktop-Graphics-Cards/SubCategory/ID-48/Page-1?Order=REVIEWS&PageSize=96"
-test_url = "https://www.newegg.com/zotac-geforce-gtx-1060-zt-p10620a-10m/p/N82E16814500454"
-cases_url = "https://www.newegg.com/Computer-Cases/SubCategory/ID-7/Page-1?Order=REVIEWS&PageSize=96"
+if len(sys.argv) != 3:
+    print("Invalid command, run command as scraper.py *link to sub-category* *output_file with no file extention*")
+    sys.exit()
+
+subcategory_url = sys.argv[1]
+output = sys.argv[2]
+
+
 
 def getPagesfromCategory(category_url):
     urls = []
     end = False
     count = 1
+    # split url over page number, should be page one according to specs
     split_link = category_url.rsplit('1',1)
-    print(split_link)
     with urllib.request.urlopen(category_url) as read_file:
         soup = BeautifulSoup(read_file, "html.parser")
-    category = soup.find("h1", {"class":"page-title-text"}).contents
     review_counts = soup.find_all("span", {"class":"item-rating-num"})
     while not end:
         split_link = category_url.rsplit('1',1)
@@ -32,7 +55,6 @@ def getPagesfromCategory(category_url):
             soup = BeautifulSoup(read_file, "html.parser")
         review_counts = soup.find_all("span", {"class":"item-rating-num"})
         for i in range(len(review_counts)):
-            #print(review_counts[i].contents[0][1:-1])
             if int(review_counts[i].contents[0][1:-1].replace(',','')) <= 2:
                 end = True
         urls.append(new_link)
@@ -48,10 +70,13 @@ def getPagesfromCategory(category_url):
 
 def getCategoryAndUrls(category_url):
     urls = []
+    # open file
     with urllib.request.urlopen(category_url) as read_file:
         soup = BeautifulSoup(read_file, "html.parser")
+    # find category in html object
     category = soup.find("h1", {"class":"page-title-text"}).contents
     item_listing = soup.find_all("a", {"class":"item-title"})
+    #put all links in the item list
     for item in item_listing:
         urls.append(item.get('href'))
     return category[0], urls
@@ -59,41 +84,50 @@ def getCategoryAndUrls(category_url):
 
 def newReviews(url):
     subdata = {}
+    # get item number from url, a bit clunky but the simplest way after newegg changes
     item = url.rsplit('/', 1)[1]
-    print(item)
     with urllib.request.urlopen(url) as read_file:
         soup = BeautifulSoup(read_file, "html.parser")
-    #print(soup.prettify())
+    # find comments and put into comments list object
     comments = soup.find_all("div", {"class":"comments-cell has-side-left is-active"})
-    review_count = len(comments)
+    # make entry for items with no reviews
     subdata[item] = []
     for comment in comments:
+        # try and get title from comment, not necessary hense the try/except, maybe not best form
         try:
             title = str(comment.find("span", {"class":"comments-title-content"}).contents[0])
         except:
             title = ""
+        # get rating, publish date, author - all required but author could be anonymous
         rating = int(comment.find("span").contents[0])
         publish_date = comment.find("span", {"class":"comments-text comments-time comments-time-right"}).get('content')
         author = comment.find("div", {"class":"comments-name"}).contents[0]
-        pros_cons_review = comment.find_all("strong")
+        # set author if anonymous due to funky formatting by newegg and the name otherwise
         if author != "Anonymous":
             author = str(author.contents[0])
         else:
             author == "Anonymous"
+        # find the identifying author id, only exists if author is not anonymous
         try:
             author_id = str(comment.find("a").get('href').rsplit('/',1)[1])
         except:
             author_id = ""
+        # find when the author purchased the item, not a required field            
         try:
             boughttime = str(comment.find("div", {"class":"comments-text"}).contents[0])
         except:
             boughttime = ""
+        # try to find if the owner is verified, owned is a necessary variable, fails if
+        # the purchase is verified
         try:
             owned = comment.find("div", {"class":"comments-text comments-verified-owner"})
             purchased = True
         except:
             purchased = False
+        # gather list object of pros, cons, and review comments, can be all, some, or none of the above
+        pros_cons_review = comment.find_all("strong")
         pros, cons, review_text = "", "", ""
+        # iterate through the pros, cons, and comments find which exst and add those to the end dictionary object
         for i in range(len(pros_cons_review)):
             if pros_cons_review[i].text == "Pros:":
                 pros = pros_cons_review[i].next_sibling.strip()
@@ -101,7 +135,13 @@ def newReviews(url):
                 cons = pros_cons_review[i].next_sibling.strip()
             elif pros_cons_review[i].text == "Overall Review:":
                 review_text = pros_cons_review[i].next_sibling.strip()
+        
+        # author was a *really* weird field, gave me lots of trouble, this fixes it
         new_auth = str(author)
+
+        # format data for addition to the json file
+        if new_auth == "Anonymous":
+            author_id = ""
         subdata[item].append({
             'Title': title,
             'Rating': int(rating),
@@ -115,96 +155,19 @@ def newReviews(url):
             'Comments': str(review_text),
 
         })
-        #print(subdata)
 
     return str(item), subdata
     
 
-def pageReviews(url):
-    subdata = {}
-    with urllib.request.urlopen(url) as read_file:
-        soup = BeautifulSoup(read_file, "html.parser")
-    try:
-        review_count = soup.find_all("span", {"itemprop":"reviewCount"})[0].contents[0]
-    except:
-        review_count = 0
-    reviews = soup.find_all("div", {"itemprop":"review"})
-    item = soup.find("input", {"id":"persMainItemNumber"}).get('value')
-    print(url)
-    print(item, review_count)
-    subdata[item] = []
-    for review in reviews:
-        try:
-            title = review.find("span", {"itemprop":"name"}).contents[0]
-        except:
-            title = ""
-        rating = review.find("span", {"itemprop":"ratingValue"}).contents[0]
-        PublishDate = review.find("span", {"itemprop":"datePublished"}).contents[0]
-        LoginNickname = review.find("div", {"itemprop":"author"}).contents[0]
-        pros_cons_review = review.find_all("strong")
-        try:
-            boughttime = review.find("div", {"class":"comments-text"}).contents[0]
-            boughttime = boughttime.split(' ',1)[1]
-        except:
-            boughttime = ""
-        if LoginNickname != "Anonymous":
-            author = LoginNickname.text.strip()
-        else:
-            author = "Anonymous"
-        try:
-            owner = review.find("div", {"class":"comments-text comments-verified-owner"}).contents[0]
-            verified = True
-        except:
-            verified = False
-        pros, cons, review_text = "", "", ""
-        for i in range(len(pros_cons_review)):
-            if pros_cons_review[i].text == "Pros:":
-                pros = pros_cons_review[i].next_sibling.strip()
-            elif pros_cons_review[i].text == "Cons:":
-                cons = pros_cons_review[i].next_sibling.strip()
-            elif pros_cons_review[i].text == "Overall Review:":
-                review_text = pros_cons_review[i].next_sibling.strip()
-        numbers = review.find_all("span", {"class":"comments-text"})
-        votes = re.findall(r"[\d]+\w* out of \w*[\d]+", str(numbers))
-        if votes != []:
-            matches = re.findall("(\d+)", votes[0])
-            consented = matches[0]
-            voted = matches[1]
-        else:
-            consented = 0
-            voted = 0
-        subdata[item].append({
-            'Title': title,
-            'Rating': int(rating),
-            'PublishDate': PublishDate,
-            'Author': author,
-            'BoughtTimeTypeString': boughttime,
-            'PurchaseMark': verified,
-            'Cons': cons,
-            'Pros': pros,
-            'Comments':review_text,
-            'VotesFor': consented,
-            'VotesTotal': voted
-        })
+# begin main function
 
-    return item, subdata
-
-
-#itemno, dataset = newReviews(test_url)
-
-my_urls = getPagesfromCategory(cases_url)
-data = {}
-dataentry = {}
+my_urls = getPagesfromCategory(subcategory_url)
 all_links = []
 
 for num in my_urls:
     category, urls = getCategoryAndUrls(num)
     for link in urls:
         all_links.append(link)
-    #all_links.append(urls)
-print(category + ": " + str(len(all_links)))
-#print(all_links)
-
 
 data = {}
 dataentry = {}
@@ -212,20 +175,12 @@ for url in all_links:
     print(url)
     itemno, dataset = newReviews(url)
     dataentry.update(dataset)
+    ############################
+    # 3 second sleep is ABSOLUTELY NECESSARY, any faster and you WILL get a short IP ban
+    ############################
     time.sleep(3)
-"""
-category, urls = getCategoryAndUrls(graphics_url)
-category = "Desktop Graphics Cards"
-print(type(category))
-data = {}
-dataentry = {}
-for url in urls:
-    print(url)
-    itemno, dataset = newReviews(url)
-    dataentry.update(dataset)
-    time.sleep(3)
-"""
-data[str(category)] = dataentry
 
-with open('data_cases.json', 'w') as outfile:
+data[str(category)] = dataentry
+output_with_timestamp = str(output) + str(time.time()) + ".json"
+with open(output_with_timestamp, 'w') as outfile:
     json.dump(data, outfile, indent=4)
